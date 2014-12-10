@@ -20,6 +20,8 @@ var net = require('net');
 var l;
 
 var debug;
+var quiet = false;
+var deleteIdleStats = false;
 var flushInterval;
 var graphiteHost;
 var graphitePort;
@@ -96,6 +98,19 @@ var flush_stats = function graphite_flush(ts, metrics) {
   var counter_rates = metrics.counter_rates;
   var timer_data = metrics.timer_data;
   var statsd_metrics = metrics.statsd_metrics;
+
+  if (quiet
+      && deleteIdleStats
+      && (counters === null || isEmptyObject(counters))
+      && (timer_data === null || isEmptyObject(timer_data))
+      && (gauges === null || isEmptyObject(gauges))
+      && (sets === null || isEmptyObject(sets))
+     ) {
+    if (debug) {
+      l.log("Not sending stats, no metrics to report");
+    }
+    return;
+  }
 
   for (key in counters) {
     var namespace = counterNamespace.concat(key);
@@ -190,15 +205,18 @@ exports.init = function graphite_init(startup_time, config, events, logger) {
   globalSuffix    = config.graphite.globalSuffix;
   legacyNamespace = config.graphite.legacyNamespace;
   prefixStats     = config.prefixStats;
+  quiet           = config.graphite.quiet;
+  deleteIdleStats = config.deleteIdleStats;
 
   // set defaults for prefixes & suffix
-  globalPrefix  = globalPrefix !== undefined ? globalPrefix : "stats";
-  prefixCounter = prefixCounter !== undefined ? prefixCounter : "counters";
-  prefixTimer   = prefixTimer !== undefined ? prefixTimer : "timers";
-  prefixGauge   = prefixGauge !== undefined ? prefixGauge : "gauges";
-  prefixSet     = prefixSet !== undefined ? prefixSet : "sets";
-  prefixStats   = prefixStats !== undefined ? prefixStats : "statsd";
+  globalPrefix    = globalPrefix !== undefined ? globalPrefix : "stats";
+  prefixCounter   = prefixCounter !== undefined ? prefixCounter : "counters";
+  prefixTimer     = prefixTimer !== undefined ? prefixTimer : "timers";
+  prefixGauge     = prefixGauge !== undefined ? prefixGauge : "gauges";
+  prefixSet       = prefixSet !== undefined ? prefixSet : "sets";
   legacyNamespace = legacyNamespace !== undefined ? legacyNamespace : true;
+  quiet           = quiet !== undefined ? quiet : false;
+  deleteIdleStats = deleteIdleStats !== undefined ? deleteIdleStats : false;
 
   // In order to unconditionally add this string, it either needs to be
   // a single space if it was unset, OR surrounded by a . and a space if
@@ -248,3 +266,10 @@ exports.init = function graphite_init(startup_time, config, events, logger) {
 
   return true;
 };
+
+function isEmptyObject(obj) {
+  for (var name in obj) {
+    return false;
+  }
+  return true;
+}
