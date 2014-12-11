@@ -268,7 +268,17 @@ exports.init = function graphite_init(startup_time, config, events, logger) {
 };
 
 function isEmptyObject(obj) {
+  var prefix = "statsd.";
+  if(prefixStats) {
+    prefix = prefixStats + "."
+  }
   for (var name in obj) {
+    if (   name == prefix + "bad_lines_seen"
+        || name == prefix + "packets_received"
+        || name == prefix + "metrics_received"
+        || name == prefix + "timestamp_lag" ) {
+      continue;
+    }
     return false;
   }
   return true;
